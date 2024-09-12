@@ -19,9 +19,13 @@ jobs:
 
       - name: Checkout code
         uses: actions/checkout@v4
+        
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
           repository: ${{ env.target_repository }}
           ref: ${{ env.TAG_NAME }}
+          path: "target_repository"
 
       - uses: swift-actions/setup-swift@v2
         with:
@@ -29,12 +33,13 @@ jobs:
 
       - name: Build Swift package
         run: |
+          cd target_repository
           swift build -c release --arch x86_64  
           swift build -c release --arch arm64
           lipo -create -output ${{ env.binary_name }} .build/arm64-apple-macosx/release/${{ env.binary_name }} .build/x86_64-apple-macosx/release/${{ env.binary_name }}
 
       - name: Run shell script with tag
-        run: ./generate-artifactbundle.sh "${{ env.TAG_NAME }}" "${{ env.binary_name }}" "${{ env.binary_name }}"
+        run: ./generate-artifactbundle.sh "${{ env.TAG_NAME }}" "${{ env.binary_name }}" "target_repository/${{ env.binary_name }}"
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
