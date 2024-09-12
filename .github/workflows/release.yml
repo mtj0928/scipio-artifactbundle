@@ -1,0 +1,45 @@
+# This workflow will build a Swift project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-swift
+name: Release
+
+on: 
+  release:
+    types: [created]
+
+env:
+  target_repository: "giginet/Scipio"
+  binary_name: "scipio"
+  
+jobs:
+  build-and-release:
+    runs-on: macos-latest
+    steps:
+      - name: Get Current Tag
+        run: echo "TAG_NAME=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.target_repository }}
+          ref: ${{ env.TAG_NAME }}
+
+      - uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: "5.10.0"
+
+      - name: Build Swift package
+        run: |
+          swift build -c release --arch x86_64  
+          swift build -c release --arch arm64
+          lipo -create -output ${{ env.binary_name }} .build/arm64-apple-macosx/release/${{ env.binary_name }} .build/x86_64-apple-macosx/release/${{ env.binary_name }}
+
+      - name: Run shell script with tag
+        run: ./generate-artifactbundle.sh "${{ env.TAG_NAME }}" "${{ env.binary_name }}" "${{ env.binary_name }}"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            ${{ env.binary_name }}-macos.artifactbundle.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
